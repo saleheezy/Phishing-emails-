@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Think Before You Click – Phishing Email Checker</title>
+<style>
+:root{--bg:#f5f7fb;--card:#fff;--text:#14213d;--muted:#5b6478;--line:#dde3ee;--accent:#1d4ed8;--bad:#b91c1c;--badbg:#fee2e2;--warn:#a16207;--warnbg:#fef3c7;--ok:#15803d;--okbg:#dcfce7;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);color-scheme:light}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0f172a;--card:#1e293b;--text:#e8edf7;--muted:#a3aec2;--line:#334155;--accent:#7aa2ff;--bad:#fca5a5;--badbg:#450a0a;--warn:#fcd34d;--warnbg:#422006;--ok:#86efac;--okbg:#052e16;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#0f172a;--card:#1e293b;--text:#e8edf7;--muted:#a3aec2;--line:#334155;--accent:#7aa2ff;--bad:#fca5a5;--badbg:#450a0a;--warn:#fcd34d;--warnbg:#422006;--ok:#86efac;--okbg:#052e16;color-scheme:dark}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:720px;margin:0 auto;padding:20px 16px 40px}
+h1{font-size:1.6rem;margin:.2em 0}
+.sub{color:var(--muted);margin:0 0 18px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:16px}
+label{display:block;font-weight:600;margin:10px 0 4px}
+input,textarea{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--text);font:inherit}
+textarea{min-height:170px;resize:vertical}
+.row{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+button{font:inherit;font-weight:600;padding:10px 16px;border-radius:10px;border:1px solid var(--accent);cursor:pointer}
+.primary{background:var(--accent);color:#fff}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .primary{color:#0f172a}}
+.ghost{background:transparent;color:var(--accent)}
+.verdict{border-radius:12px;padding:14px;font-weight:700;font-size:1.15rem}
+.v-bad{background:var(--badbg);color:var(--bad)}.v-warn{background:var(--warnbg);color:var(--warn)}.v-ok{background:var(--okbg);color:var(--ok)}
+.verdict small{display:block;font-weight:400;margin-top:4px}
+ul.flags{list-style:none;padding:0;margin:14px 0 0}
+ul.flags li{padding:10px 12px;border:1px solid var(--line);border-radius:10px;margin-bottom:8px}
+ul.flags b{display:block}
+.pts{float:right;color:var(--muted);font-size:.85rem}
+.rules{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;text-align:center}
+.rules div{border:1px solid var(--line);border-radius:10px;padding:10px}
+.note{color:var(--muted);font-size:.88rem}
+@media (max-width:480px){.rules{grid-template-columns:1fr}}
+.meter{height:10px;background:var(--line);border-radius:6px;margin:12px 0;overflow:hidden}.meter span{display:block;height:100%;background:var(--accent)}
+.cats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;text-align:center}.cats div{border:1px solid var(--line);border-radius:10px;padding:8px}.cats b{font-size:1.2rem}
+@media print{main>section.card:not(#out),.sub,#out .row{display:none}#out{border:none}}
+</style>
+</head>
+<body>
+<main>
+<h1>🛡️ Phishing Email Checker</h1>
+<p class="sub">Think before you click. Paste a suspicious email and see which warning signs it shows.</p>
+
+<section class="card">
+<label for="from">Sender address (optional)</label>
+<input id="from" placeholder="e.g. it-support@ccq.edu.qa" autocomplete="off">
+<label for="subj">Subject (optional)</label>
+<input id="subj" placeholder="e.g. Urgent: your account will be suspended" autocomplete="off">
+<label for="body">Email body (paste text, links included)</label>
+<textarea id="body" placeholder="Paste the email here…"></textarea>
+<label for="hdr">Email headers (optional, for SPF / DKIM / DMARC check)</label>
+<textarea id="hdr" style="min-height:90px" placeholder="Paste raw headers, e.g. Authentication-Results: … spf=fail …"></textarea>
+<div class="row">
+<button class="primary" id="go">Check email</button>
+<button class="ghost" id="sample">Try an example</button>
+<button class="ghost" id="clear">Clear</button>
+</div>
+<p class="note">Everything is analyzed in your browser. Nothing is uploaded or stored.</p>
+</section>
+
+<section class="card" id="out" hidden aria-live="polite"></section>
+
+<section class="card">
+<b>3 simple rules</b>
+<div class="rules" style="margin-top:10px">
+<div><b>1. STOP</b><br><span class="note">Don't rush or click.</span></div>
+<div><b>2. CHECK</b><br><span class="note">Sender, link, request.</span></div>
+<div><b>3. REPORT</b><br><span class="note">Report it, then delete.</span></div>
+</div>
+<p class="note">Never share your password or verification code. This tool uses simple rules and can be wrong: when in doubt, verify through the official website or app (type the address yourself).</p>
+</section>
+
+<p class="note">Sources: CISA “Recognize and Report Phishing”; FTC “How To Recognize and Avoid Phishing Scams”; NIST “Phishing”.</p>
+</main>
+
+<script>
+(function(){
+var $=function(id){return document.getElementById(id)};
+var BRANDS={ccq:"ccq.edu.qa",microsoft:"microsoft.com",apple:"apple.com",amazon:"amazon.com",google:"google.com",netflix:"netflix.com",dhl:"dhl.com",fedex:"fedex.com",facebook:"facebook.com",instagram:"instagram.com",whatsapp:"whatsapp.com",linkedin:"linkedin.com"};
+var SHORT=["bit.ly","tinyurl.com","t.co","goo.gl","ow.ly","is.gd","cutt.ly","rb.gy","shorturl.at","tiny.cc"];
+var BADTLD=[".zip",".top",".xyz",".click",".work",".support",".icu",".buzz",".rest",".gq",".tk",".ml",".cf"];
+var URGENT=/\b(urgent|immediately|act now|within \d+ (hours?|minutes?)|expires? (today|soon)|final (notice|warning)|last chance|suspended|will be (closed|locked|deleted|terminated)|verify (now|your)|limited time|24 hours|avoid (suspension|closure))\b/i;
+var SECRET=/\b(password|passcode|verification code|one[- ]time (code|password)|otp|pin\b|cvv|card number|credit card|bank (details|account)|social security|ssn|login details|confirm your (identity|account)|security answer)\b/i;
+var GENERIC=/\b(dear (customer|user|client|member|account holder)|valued customer|hello user)\b/i;
+var PRIZE=/\b(you('| ha)ve won|winner|prize|lottery|gift card|free (iphone|gift)|claim your)\b/i;
+var ATTACH=/\b(open|see|view|download)( the)? attach(ed|ment)|\.(exe|scr|zip|js|iso|html?)\b/i;
+
+function host(u){try{return new URL(u).hostname.toLowerCase().replace(/^www\./,"")}catch(e){return ""}}
+function root(h){var p=h.split("."),n=p.length;if(n>2&&p[n-1].length===2&&/^(co|com|edu|gov|org|net|ac)$/.test(p[n-2]))return p.slice(-3).join(".");return n>2?p.slice(-2).join("."):h}
+function esc(s){return s.replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
+
+function analyze(){
+  var from=$("from").value.trim(),subj=$("subj").value.trim(),body=$("body").value;
+  var all=subj+"\n"+body, flags=[];
+  var cat="Sender";
+  function add(sev,pts,title,why){flags.push({sev:sev,pts:pts,cat:cat,title:title,why:why})}
+
+  var urls=(body.match(/https?:\/\/[^\s"'<>)\]]+/gi)||[]).concat(body.match(/\b(?:www\.)[^\s"'<>)\]]+/gi)||[]).map(function(u){return /^https?:/i.test(u)?u:"http://"+u});
+  var fm=from.match(/@([^\s>]+)/), sd=fm?fm[1].toLowerCase():"", sroot=root(sd);
+
+  // 1. Sender
+  if(from){
+    if(!fm) add("warn",1,"Sender has no valid address","Could not find an email address in the sender field.");
+    else{
+      var low=sd.replace(/[^a-z0-9.-]/g,"");
+      Object.keys(BRANDS).forEach(function(b){
+        var real=BRANDS[b];
+        var near=low.split(/[.-]/).some(function(p){return p.replace(/1/g,"l").replace(/0/g,"o").replace(/3/g,"e")===b});
+        var contains=low.indexOf(b)>-1||near;
+        if(contains && root(low)!==real && !low.endsWith("."+real)) add("bad",3,"Look-alike sender domain","“"+sd+"” imitates "+b+" but is not "+real+".");
+      });
+      if(/xn--|[^\x00-\x7f]/.test(sd)) add("bad",3,"Sender domain uses disguised characters","Punycode (xn--) domains can imitate real sites.");
+      if(BADTLD.some(function(t){return sd.endsWith(t)})) add("warn",1,"Unusual sender domain ending","Cheap domain endings are common in scam campaigns.");
+      if(/^[^@]*\d{5,}/.test(from)) add("warn",1,"Sender name contains a long number","Random numbers in addresses often signal automated scam accounts.");
+    }
+    var disp=from.replace(/<.*$/,"").toLowerCase();
+    Object.keys(BRANDS).forEach(function(b){
+      if(disp.indexOf(b)>-1 && fm && root(sd)!==BRANDS[b] && !sd.endsWith("."+BRANDS[b])) add("bad",2,"Display name doesn't match the address","Name says “"+b+"” but the address comes from “"+sd+"”. Names are easy to fake.");
+    });
+  }
+
+  cat="Links";
+  // 2. Links
+  var seen={};
+  urls.forEach(function(u){
+    var h=host(u); if(!h||seen[h]) return; seen[h]=1;
+    if(/^\d{1,3}(\.\d{1,3}){3}$/.test(h)) add("bad",3,"Link goes to an IP address","“"+h+"” is not a normal website name.");
+    else if(SHORT.indexOf(h)>-1) add("warn",2,"Shortened link","“"+h+"” hides the real destination.");
+    else{
+      if(/xn--/.test(h)) add("bad",3,"Link uses disguised characters",h);
+      if(BADTLD.some(function(t){return h.endsWith(t)})) add("warn",1,"Link with unusual domain ending",h);
+      if(h.split(".").length>4) add("warn",1,"Link with many sub-domains",h+" – the real domain is only the last two parts.");
+      Object.keys(BRANDS).forEach(function(b){
+        if(h.indexOf(b)>-1 && root(h)!==BRANDS[b]) add("bad",3,"Link imitates "+b,"“"+h+"” is not "+BRANDS[b]+".");
+      });
+      if(sd && root(h)!==sroot && !/unsubscribe/.test(u)) add("warn",1,"Link domain differs from sender","Sender is “"+sd+"” but a link goes to “"+h+"”.");
+    }
+    if(/^http:\/\//i.test(u) && !/^http:\/\/www\./i.test(u)) add("warn",1,"Link is not encrypted (http)",h);
+    if(/[?&](url|redirect|redirect_uri|next|target|dest|goto|continue|return)=(https?(:|%3A))/i.test(u)) add("warn",2,"Link redirects to another site",h+" carries a second address inside the link.");
+    if(/@/.test(u.replace(/^https?:\/\//,"").split("/")[0])) add("bad",2,"Link contains “@”","Everything before @ is ignored by the browser, a known trick.");
+  });
+  var a,re=/<a\s[^>]*href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi;
+  while((a=re.exec(body))){var t=a[2].replace(/<[^>]+>/g,"").trim(),m=t.match(/(?:https?:\/\/)?([a-z0-9.-]+\.[a-z]{2,})/i);
+    if(m && root(m[1].toLowerCase().replace(/^www\./,""))!==root(host(a[1]))) add("bad",3,"Link text doesn't match its real destination","Shows “"+m[1]+"” but opens “"+host(a[1])+"”.")}
+  var md,mr=/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g;
+  while((md=mr.exec(body))){var m2=md[1].match(/([a-z0-9-]+\.)+[a-z]{2,}/i);
+    if(m2 && root(m2[0].toLowerCase().replace(/^www\./,""))!==root(host(md[2]))) add("bad",3,"Link text doesn't match its real destination","Shows “"+m2[0]+"” but opens “"+host(md[2])+"”.")}
+
+  cat="Headers";
+  var hd=$("hdr").value;
+  if(hd.trim()){
+    ["spf","dkim","dmarc"].forEach(function(k){
+      var m=hd.match(new RegExp("\\b"+k+"=(\\w+)","i"));
+      if(m && m[1].toLowerCase()!=="pass"){var v=m[1].toLowerCase(),hard=(v==="fail"||k==="dmarc");add(hard?"bad":"warn",hard?3:2,k.toUpperCase()+" result: "+v,"The sending server failed or could not prove it is allowed to send for this domain.")}
+    });
+    [["reply-to","Reply-To"],["return-path","Return-Path"]].forEach(function(p){
+      var m=hd.match(new RegExp("^"+p[0]+":.*@([^\\s>]+)","im"));
+      if(m && sd && root(m[1].toLowerCase())!==sroot) add("warn",2,p[1]+" differs from sender","Replies or bounces go to “"+m[1]+"”, not “"+sd+"”.");
+    });
+  }
+  cat="Content";
+  // 3. Private info
+  var s=all.match(SECRET); if(s) add("bad",3,"Asks for private information","Mentions “"+s[0]+"”. Real companies don't ask for this by email.");
+  // 4. Pressure
+  var u=all.match(URGENT); if(u) add("bad",2,"Pressure or urgency","Phrase: “"+u[0]+"”. Scammers want you to act before you think.");
+  // extras
+  if(GENERIC.test(all)) add("warn",1,"Generic greeting","Real services usually use your name.");
+  if(PRIZE.test(all)) add("warn",2,"Too-good-to-be-true offer","Unexpected prizes or gifts are a classic bait.");
+  if(ATTACH.test(all)) add("warn",1,"Pushes you to open an attachment","Don't open unexpected files.");
+  if(body.length>20 && (body.match(/!/g)||[]).length>=4) add("warn",1,"Excessive exclamation marks","");
+
+  var score=Math.min(100,flags.reduce(function(n,f){return n+f.pts},0)*10);
+  return {flags:flags,score:score,hasInput:(body+from+subj).trim().length>0};
+}
+
+function render(r){
+  var o=$("out"); o.hidden=false;
+  if(!r.hasInput){o.innerHTML='<div class="verdict v-warn">Paste an email first.</div>';return}
+  var cls,title,msg;
+  if(r.score>=50){cls="v-bad";title="🚨 Likely phishing";msg="Several warning signs found. Don't click, reply, or open attachments. Report it and delete it."}
+  else if(r.score>=20){cls="v-warn";title="⚠️ Suspicious";msg="Some warning signs found. Verify through the official website or app before doing anything."}
+  else{cls="v-ok";title="✅ No obvious red flags";msg="That doesn't prove it's safe. If it asks you to click or share anything, verify via an official channel."}
+  var cats={Sender:0,Links:0,Headers:0,Content:0};r.flags.forEach(function(f){cats[f.cat]=Math.min(100,cats[f.cat]+f.pts*10)});
+  var h='<div class="verdict '+cls+'">'+title+' · '+r.score+'/100<small>'+msg+'</small></div><div class="meter"><span style="width:'+r.score+'%"></span></div><div class="cats">'+Object.keys(cats).map(function(k){return '<div><b>'+cats[k]+'</b><br><span class="note">'+k+'</span></div>'}).join("")+'</div>';
+  if(r.flags.length){
+    h+='<ul class="flags">'+r.flags.sort(function(a,b){return b.pts-a.pts}).map(function(f){
+      return '<li><span class="pts">'+(f.pts>=3?"Critical":f.pts===2?"High":"Medium")+" · "+f.cat+'</span><b>'+esc(f.title)+'</b>'+(f.why?'<span class="note">'+esc(f.why)+'</span>':"")+'</li>'}).join("")+'</ul>';
+  }
+  h+='<div class="row"><button class="ghost" onclick="window.print()">Export report (PDF)</button></div><p class="note">The score is a rule-based estimate, not a guarantee.</p>'; o.innerHTML=h; o.scrollIntoView({behavior:"smooth",block:"start"});
+}
+
+$("go").onclick=function(){render(analyze())};
+$("clear").onclick=function(){$("from").value=$("subj").value=$("body").value="";$("out").hidden=true};
+$("sample").onclick=function(){
+  $("from").value="CCQ IT Support <it-support@ccq.edu.qa>";
+  $("subj").value="URGENT: Your CCQ student account will be suspended within 24 hours";
+  $("body").value="Dear user,\n\nYour Community College of Qatar (CCQ) student account will be suspended. Verify now and confirm your password to avoid suspension:\nhttp://ccq.edu.qa.verify-login.top/secure\n\nThank you,\nCCQ IT Support";
+  render(analyze());
+};
+})();
+</script>
+</body>
+</html>
